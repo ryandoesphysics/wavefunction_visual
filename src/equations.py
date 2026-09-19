@@ -25,10 +25,10 @@ def associated_legendre(m,l,x):
         return (-1)**m *(1-x**2)**(m/2)*derivative(m, legendre, x)
 
 
-def derivative(m, f: function, x):
+def derivative(m, f: function, x: np.ndarray):
     h = 0.0000000001
     if m == 0:
-        return function(x)
+        return f(x)
     elif m == 1:
         return (f(x+h)-f(h))/h
     elif m == 2:
@@ -46,5 +46,7 @@ def radial_harmonics(n, l, r):
     return rho**l * np.exp(-rho) * legendre(2*rho)
 
 
-# def monte_carlo_integrate(f: function, a, b, h):
-#     n = 
+def normalisation_constant(f: function, a, b, h):
+    n = round((b - a)/h)
+    x = np.linspace(a, b, n)
+    y = f(x)
