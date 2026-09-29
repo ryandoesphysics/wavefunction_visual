@@ -54,7 +54,9 @@ def generate(npts: int, n, l, m):
     peak_p = 1 / PHI_MAX
 
     while len(sample) < npts:
-        const = random.random()
+        const_r = random.random()
+        const_theta = random.random()
+        const_phi = random.random()
         random_r = r_max * random.random()
         random_theta = THETA_MAX * random.random()
         random_phi = PHI_MAX * random.random()
@@ -64,63 +66,34 @@ def generate(npts: int, n, l, m):
         value_phi = f_phi(random_phi)
 
         if (
-            const * peak_r <= value_r
-            and const * peak_s <= value_theta
-            and const * peak_p <= value_phi
+            const_r * peak_r <= value_r
+            and const_theta * peak_s <= value_theta
+            and const_phi * peak_p <= value_phi
         ):
             sample.append([random_r, random_theta, random_phi])
             psi_2.append(value_r * value_theta)
     return np.array(sample), np.array(psi_2)
 
 
-coord, psi_2 = generate(30000, 4, 3, 1)
-x, y, z = cartesian(coord[:, 0], coord[:, 1], coord[:, 2])
-# use psi squaared r squared sintheta
-fig = go.Figure(
-    data=[
-        go.Scatter3d(
-            x=x,
-            y=y,
-            z=z,
-            mode="markers",
-            marker=dict(
-                size=2,
-                color=psi_2,
-                colorscale="Blackbody",
-                opacity=0.6,
-            ),
-        )
-    ]
-)
+if __name__ == "__main__":
+    coord, psi_2 = generate(30000, 4, 3, 1)
+    x, y, z = cartesian(coord[:, 0], coord[:, 1], coord[:, 2])
+    # use psi squaared r squared sintheta
+    fig = go.Figure(
+        data=[
+            go.Scatter3d(
+                x=x,
+                y=y,
+                z=z,
+                mode="markers",
+                marker=dict(
+                    size=2,
+                    color=psi_2,
+                    colorscale="Blackbody",
+                    opacity=0.6,
+                ),
+            )
+        ]
+    )
 
-fig.show()
-
-
-def density_grid(x, y, z, bins=25):
-    """Bin scattered points into a 3D histogram and return grid + density."""
-    sample = np.vstack([x, y, z]).T
-    counts, edges = np.histogramdd(sample, bins=bins)
-
-    # bin centers, not edges, for accurate plotting
-    centers = [(e[:-1] + e[1:]) / 2 for e in edges]
-    X, Y, Z = np.meshgrid(*centers, indexing="ij")
-
-    return X, Y, Z, counts
-
-
-# X, Y, Z, density = density_grid(x, y, z, bins=25)
-
-# fig = go.Figure(
-#    data=go.Volume(
-#        x=X.flatten(),
-#        y=Y.flatten(),
-#        z=Z.flatten(),
-#        value=density.flatten(),
-#        isomin=density.max() * 0.05,  # skip near-empty bins
-#        isomax=density.max(),
-#        opacity=0.1,
-#        surface_count=25,
-#        colorscale="Viridis",
-#    )
-# )
-# fig.show()
+    fig.show()
