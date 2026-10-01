@@ -75,25 +75,25 @@ def generate(npts: int, n, l, m):
     return np.array(sample), np.array(psi_2)
 
 
-if __name__ == "__main__":
-    coord, psi_2 = generate(30000, 4, 3, 1)
-    x, y, z = cartesian(coord[:, 0], coord[:, 1], coord[:, 2])
-    # use psi squaared r squared sintheta
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(
-                x=x,
-                y=y,
-                z=z,
-                mode="markers",
-                marker=dict(
-                    size=2,
-                    color=psi_2,
-                    colorscale="Blackbody",
-                    opacity=0.6,
-                ),
-            )
-        ]
-    )
-
-    fig.show()
+# if __name__ == "__main__":
+#    coord, psi_2 = generate(30000, 4, 3, 1)
+#    x, y, z = cartesian(coord[:, 0], coord[:, 1], coord[:, 2])
+#    # use psi squaared r squared sintheta
+#    fig = go.Figure(
+#        data=[
+#            go.Scatter3d(
+#                x=x,
+#                y=y,
+#                z=z,
+#                mode="markers",
+#                marker=dict(
+#                    size=2,
+#                    color=psi_2,
+#                    colorscale="Blackbody",
+#                    opacity=0.6,
+#                ),
+#            )
+#        ]
+#    )
+#
+#    fig.show()

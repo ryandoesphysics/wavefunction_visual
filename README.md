@@ -8,7 +8,7 @@
 
 ## Summary
 
-The probability distribution of the electron in the hydrogen atom is visualised as a three-dimensional point cloud. Positions $(r,\theta,\phi)$ are sampled from $|\psi_{nlm}|^2$ by rejection sampling, with the wavefunction separated into a radial and an angular component, and plotted with Plotly. The special functions were implemented directly, and the normalisation constants were determined numerically. Two assumptions underlie the method: that the radial density is negligible beyond $500$ times the classical turning point, and that the finite-difference derivatives used for the associated Legendre functions are sufficiently accurate. The validity of both is discussed in Sec. III.
+The probability distribution of the electron in the hydrogen atom is visualised as a three-dimensional point cloud. Positions $(r,\theta,\phi)$ are sampled from $|\psi_{nlm}|^2$ by rejection sampling, with the wavefunction separated into a radial and an angular component, and plotted with Plotly. The method was first implemented in `visualise.py` using special functions written directly in `equations.py`. This implementation was found to be limited to $l\le3$, to be unreliable for $|m|=3$ owing to finite-difference derivatives of the Legendre polynomials, and to be inefficient. It was therefore improved in `visualise_special.py`, which uses `scipy.special` for the spherical harmonics and radial functions, and **`visualise_special.py` is the implementation used from here on**. The sampled moments agree with the exact values for all states tested, up to $n=12$ and $l=9$. The original is retained for comparison, and its limitations are discussed in Sec. IV.
 
 ## I. Introduction
 
@@ -24,13 +24,13 @@ $$
 Y_{lm}(\theta,\phi) = \Theta_{lm}\Phi_m=(-1)^m\left(\frac{2l+1}{4\pi}\frac{(l-m)!}{(l+m)!}\right)^{1/2}P^m_l(\cos\theta)e^{im\phi},
 $$
 
-and the radial function is proportional to
+and the normalised radial function is
 
 $$
-R_{nl}(r) \propto \rho^{l}e^{-\rho}L^{2l+1}_{n-l-1}(2\rho), \qquad \rho = \frac{r}{na_0}.
+R_{nl}(r) = \sqrt{\left(\frac{2}{n}\right)^{3}\frac{(n-l-1)!}{2n\,(n+l)!}}\;\rho^{l}e^{-\rho}\,2^{l}L^{2l+1}_{n-l-1}(2\rho), \qquad \rho = \frac{r}{na_0}.
 $$
 
-Here $P^m_l$ are the associated Legendre functions, $L^q_p$ are the associated Laguerre polynomials and $a_0$ is the Bohr radius. The aim of this project is to produce a three-dimensional representation of $|\psi_{nlm}|^2$ for a chosen $(n,l,m)$, in which the local density of points reflects the probability of finding the electron in that region.
+Here $P^m_l$ are the associated Legendre functions, $L^q_p$ are the associated Laguerre polynomials and $a_0$ is the Bohr radius, and lengths are given in units of $a_0$ from this point onwards. The aim of this project is to produce a three-dimensional representation of $|\psi_{nlm}|^2$ for a chosen $(n,l,m)$, in which the local density of points reflects the probability of finding the electron in that region.
 
 ## II. Method
 
@@ -39,64 +39,101 @@ Here $P^m_l$ are the associated Legendre functions, $L^q_p$ are the associated L
 In spherical coordinates the volume element is $r^2\sin\theta\,dr\,d\theta\,d\phi$. Since $|e^{im\phi}|^2 = 1$, the probability density therefore factorises into three independent one-dimensional distributions,
 
 $$
-p(r) \propto r^2R_{nl}^2(r), \qquad
-p(\theta) \propto |\Theta_{lm}(\theta)|^2\sin\theta, \qquad
-p(\phi) = \frac{1}{2\pi}. 
+p(r) = r^2R_{nl}^2(r), \qquad
+p(\theta) = 2\pi\,|Y_{lm}(\theta,0)|^2\sin\theta, \qquad
+p(\phi) = \frac{1}{2\pi},
 $$
 
-It is important to note that this allows $r$, $\theta$ and $\phi$ to be treated separately, and that the azimuthal distribution is uniform for every state.
+each of which is normalised to unity. It is important to note that this allows $r$, $\theta$ and $\phi$ to be treated separately, and that the azimuthal distribution is uniform for every state.
 
 ### B. Special functions
 
-The special functions were implemented in `equations.py` rather than imported. The Legendre polynomials $P_l(x)$ are hard-coded for $l=0$ to $3$. The associated Legendre functions $P_l^m(x)$ are calculated from the $m$-th derivative of $P_l(x)$, which is approximated by finite differences with a step size $h=10^{-6}$, and negative $m$ is handled using the reflection identity relating $P_l^{-m}$ to $P_l^{m}$. The associated Laguerre polynomials are evaluated from their explicit finite series. To prevent floating-point underflow, the radial function is evaluated in units of the Bohr radius ($r \to r/a_0$), as raw magnitudes in metres ($a_0 \approx 5.3\times10^{-11}$ m) were found to be silently returned as zero by the numerical integrator.
+The special functions were evaluated with `scipy.special` [2]. The spherical harmonic $Y_{lm}$ was computed with `sph_harm_y`, which is valid for any $l$ and $|m|\le l$ and does not require derivatives of the Legendre polynomials to be approximated. The associated Laguerre polynomial in the radial function of Sec. I was computed with `eval_genlaguerre`, and the prefactor was assembled from `gammaln` so that the factorials do not overflow at large $n$. Since $|Y_{lm}|$ is independent of $\phi$, it is evaluated at $\phi=0$ in $p(\theta)$.
 
 ### C. Normalisation
 
-Each one-dimensional density was normalised numerically. The radial integral $\int_0^\infty (rR_{nl})^2\,dr$ was evaluated using `scipy.integrate.quad` [2] in units of $a_0$, with absolute and relative tolerances of $10^{-12}$ and $10^{-10}$ respectively. The polar integral $\int_0^\pi |\Theta_{lm}|^2\sin\theta\,d\theta$ was evaluated using the composite Simpson's rule with $N=10^7$ points, where the step size is $h=(b-a)/N$ and $N$ is required to be even.
+Both $p(r)$ and $p(\theta)$ are normalised analytically, by the prefactor of the radial function in Sec. I and by the normalisation of $Y_{lm}$ over the sphere respectively, so that no numerical normalisation is required. This was verified by integrating each density with `scipy.integrate.quad` for every $n\le8$ and every allowed $(l,m)$, where the largest deviation of an integral from unity was $4\times10^{-15}$.
 
 ### D. Rejection sampling
 
-Points were generated by rejection sampling [3] in `visualise.py`. The radial density has infinite support, so the sampling domain was truncated at $r_{\max}=500\,r_{+}$, where
+Points were generated by rejection sampling [3] in `visualise_special.py`. Since the density factorises, $r$ and $\theta$ were sampled independently, and $\phi$ was drawn directly from a uniform distribution because a rejection step is unnecessary for a constant density.
+
+The radial density has infinite support, so the sampling domain was truncated at $r_{\max}$. Starting from the outer classical turning point
 
 $$
-r_{+} = n^2\left(1+\sqrt{1-\frac{l(l+1)}{n^2}}\right)
+r_{+} = n^2\left(1+\sqrt{1-\frac{l(l+1)}{n^2}}\right),
 $$
 
-is the outer classical turning point in units of $a_0$. The maximum of each normalised density was found by evaluating it on a grid of $10^7$ points, and this sets the height of the rejection envelope. A candidate $(r,\theta,\phi)$ was drawn uniformly over $[0,r_{\max}]\times[0,\pi]\times[0,2\pi]$, together with a uniform random number $u\in[0,1)$. The candidate was accepted if
+$r_{\max}$ was increased in steps of a factor of $1.25$ until the probability of finding the electron beyond it, evaluated with `scipy.integrate.quad`, fell below $10^{-10}$. The maximum of each density was found by evaluating it on a grid of $2\times10^5$ points and multiplying by $1.01$, and this sets the height $f^{\max}$ of the rejection envelope. For each coordinate, a candidate $x$ was drawn uniformly over its domain together with $u$ uniform on $[0,f^{\max}]$, and was accepted if
 
 $$
-u\,f^{\max}_{r}\le f_r(r), \qquad u\,f^{\max}_{\theta}\le f_\theta(\theta), \qquad u\,f^{\max}_{\phi}\le f_\phi(\phi)
+u \le f(x).
 $$
 
-were simultaneously satisfied, and the procedure was repeated until the requested number of points had been collected. For each accepted point, the product $f_r f_\theta$ was recorded and later used to colour the point.
+Candidates were generated in vectorised batches until the requested number of points had been collected. For each accepted point, the product $p(r)\,p(\theta)$ was recorded and later used to colour the point.
 
 ### E. Visualisation
 
-The accepted samples were converted from spherical to Cartesian coordinates and displayed as a Plotly `Scatter3d` point cloud [4]. Marker colour was mapped to the recorded density using the `Blackbody` colourscale, and semi-transparent markers ($\text{opacity}=0.6$) were used so that the radial nodes and angular lobes remain visible. A helper function, `density_grid`, is also included, which bins the samples into a three-dimensional histogram so that they can be rendered as a `go.Volume` plot as an alternative.
+The accepted samples were converted from spherical to Cartesian coordinates, with $x=r\sin\theta\cos\phi$ and $y=r\sin\theta\sin\phi$, and displayed as a Plotly `Scatter3d` point cloud [4]. Marker colour was mapped to the recorded density using the `Blackbody` colourscale, and semi-transparent markers ($\text{opacity}=0.6$) were used so that the radial nodes and angular lobes remain visible.
 
-## III. Discussion
+## III. Results
 
-Several limitations of the current implementation should be noted.
+The sampler was validated by comparing moments of $2\times10^5$ sampled points with their exact values, which are
 
-Firstly, the acceptance criterion during rejection sampling uses a single random number $u$ for all three coordinates. The candidate is therefore accepted with probability $\min\!\left(f_r/f_r^{\max},\,f_\theta/f_\theta^{\max},\,f_\phi/f_\phi^{\max}\right)$ rather than with the product of the three ratios, and this introduces a correlation between $r$ and $\theta$. Since the density factorises, this could be avoided by sampling each coordinate independently, or by drawing an independent $u$ for each coordinate. The choice of $r_{\max}=500\,r_+$ is also very conservative, which lowers the acceptance rate significantly.
+$$
+\langle r\rangle = \frac{a_0}{2}\left[3n^2-l(l+1)\right], \qquad
+\langle\cos^2\theta\rangle = \frac{(l+1)^2-m^2}{(2l+1)(2l+3)} + \frac{l^2-m^2}{(2l-1)(2l+1)},
+$$
 
-Secondly, the finite-difference approximation of the derivative of $P_l$ becomes inaccurate for larger $m$. With $h=10^{-6}$ the round-off error scales as $\varepsilon/h^{m}$, where $\varepsilon\approx10^{-16}$ is the machine precision, so that for $m=3$ the error is of order $10^{2}$ and exceeds the true value. The results for $|m|\ge2$ are therefore unreliable, and this could be improved by using the closed-form expressions, or `scipy.special.lpmv` and `scipy.special.sph_harm_y` [2], which would also remove the restriction to $l\le3$.
+where the second term of $\langle\cos^2\theta\rangle$ is absent for $l=0$.
 
-Finally, the mapping from spherical to Cartesian coordinates in `cartesian` interchanges $x$ and $y$ relative to the usual convention, which rotates the figure by $90^\circ$ about the $z$-axis but does not affect the density.
+| $(n,l,m)$ | $\langle r\rangle$ sampled | $\langle r\rangle$ exact | $\langle\cos^2\theta\rangle$ sampled | $\langle\cos^2\theta\rangle$ exact |
+| --- | --- | --- | --- | --- |
+| $(1,0,0)$ | 1.498 | 1.500 | 0.3321 | 0.3333 |
+| $(2,1,0)$ | 5.005 | 5.000 | 0.5993 | 0.6000 |
+| $(4,3,1)$ | 17.994 | 18.000 | 0.4676 | 0.4667 |
+| $(4,3,3)$ | 17.994 | 18.000 | 0.1111 | 0.1111 |
+| $(10,9,-9)$ | 105.074 | 105.000 | 0.0477 | 0.0476 |
+| $(12,4,2)$ | 206.074 | 206.000 | 0.4021 | 0.4026 |
 
-## IV. Conclusions
+The differences are consistent with the standard error of the mean. The correlation coefficient between $r$ and $\cos^2\theta$ had a magnitude of at most $0.003$ for all eleven states tested, which supports the independence of the two coordinates. The densities $p(r)$ and $p(\theta)$ were also compared with those of `equations.py` for $l\le3$ and $|m|\le2$, where the relative deviations were $4\times10^{-15}$ and $8\times10^{-5}$ respectively, the latter arising from the numerical normalisation and finite-difference derivatives of the original.
 
-A method was developed to visualise the probability density of the hydrogen atom by separating the wavefunction into radial and angular components and sampling each by rejection. The method produces a point cloud that reflects the structure of the orbital, but the usage of rejection samopling and the finite-difference Legendre derivatives should be improved before the results for $|m|\ge2$ can be considered reliable.
+## IV. Discussion
+
+The original implementation, `visualise.py` with `equations.py`, was superseded for the following reasons.
+
+Firstly, the associated Legendre functions were calculated from finite-difference derivatives of $P_l$ with step size $h=10^{-6}$. The round-off error of an $m$-th derivative scales as $\varepsilon/h^{m}$, where $\varepsilon\approx10^{-16}$ is the machine precision, which is negligible for $m\le1$ and of order $10^{-4}$ for $m=2$, but of order $10^{2}$ for $m=3$ and exceeds the true value. For $(n,l,m)=(4,3,3)$ the original harmonics gave $\langle\cos^2\theta\rangle=0.379$ against an exact value of $0.111$. The Legendre polynomials were also hard-coded for $l\le3$, which restricted the states that could be visualised.
+
+Secondly, the efficiency of the original was low. The truncation $r_{\max}=500\,r_+$ gave a radial acceptance probability of between $7\times10^{-4}$ and $2\times10^{-3}$ for the states $(1,0,0)$, $(4,3,1)$ and $(10,5,2)$, compared with $0.12$ to $0.16$ for the tail-based truncation of Sec. II.D, and candidates were processed one at a time in Python. The polar normalisation by Simpson's rule over $10^7$ points was also a pure-Python loop, and constructing the grid with `numpy.linspace` and $N$ points gives $N-1$ intervals, so that the stated requirement of an even $N$ was not the correct condition.
+
+It is important to note that the acceptance criterion of the original, which draws an independent random number for each coordinate, samples the joint density correctly, so that the improvement concerns accuracy at larger $m$, the range of states and efficiency rather than the statistical validity of the method. The original `cartesian` function also interchanged $x$ and $y$ relative to the usual convention, which rotates the figure by $90^\circ$ about the $z$-axis but does not affect the density; this is corrected in `visualise_special.py`.
+
+Several assumptions remain in the current implementation. The radial density is neglected beyond $r_{\max}$, where the probability is below $10^{-10}$, and the envelope heights rely on a grid maximum with a $1\%$ margin. The colour of each point is $p(r)\,p(\theta)$ rather than $|\psi_{nlm}|^2$ itself. `scipy.special.sph_harm_y` requires SciPy 1.15 or later, and the validation of Sec. III was carried out with SciPy 1.17 on Python 3.12 rather than the 3.14 specified by the project.
+
+## V. Conclusions
+
+A method was developed to visualise the probability density of the hydrogen atom by separating the wavefunction into radial and angular components and sampling each independently by rejection. The use of `scipy.special` in `visualise_special.py` removes the restriction to $l\le3$ and the errors at $|m|=3$ present in the original, and the sampled moments agree with the exact values for every state tested. `visualise_special.py` is therefore the implementation that should be used.
+
+## Usage
+
+```python
+from wavefunction_visual.visualise_special import generate, cartesian
+
+coords, density = generate(30000, n=4, l=3, m=1, seed=0)
+x, y, z = cartesian(coords[:, 0], coords[:, 1], coords[:, 2])
+```
+
+Running `uv run python -m wavefunction_visual.visualise_special` displays the $(4,3,1)$ orbital.
 
 ## Project layout
 
 | File | Purpose |
 | --- | --- |
-| `src/wavefunction_visual/equations.py` | Legendre, Laguerre, spherical and radial harmonics, and numerical normalisation |
-| `src/wavefunction_visual/visualise.py` | Rejection sampler, coordinate conversion and Plotly figures |
-| `src/wavefunction_visual/refactor.py` | Work-in-progress refactor of the sampler |
+| `src/wavefunction_visual/visualise_special.py` | **Current implementation**: `scipy.special` harmonics, independent rejection sampling and Plotly figure |
+| `src/wavefunction_visual/visualise.py` | Original rejection sampler built on `equations.py`, superseded by `visualise_special.py` |
+| `src/wavefunction_visual/equations.py` | Original hand-written Legendre, Laguerre, spherical and radial harmonics and numerical normalisation, used by `visualise.py` |
 
-Dependencies are managed with `uv`, and require Python 3.14 with `numpy`, `scipy` and `plotly`.
+Dependencies are managed with `uv`, and require Python 3.14 with `numpy`, `scipy` (version 1.15 or later) and `plotly`.
 
 ## References
 
